@@ -27,6 +27,7 @@ async function run() {
     const usersCollection = client.db("school-of-excellence").collection("users");
     const programsCollection = client.db("school-of-excellence").collection("programs");
     const teacherCollection = client.db("school-of-excellence").collection("teachers");
+    const successCollection = client.db("school-of-excellence").collection("success");
 
     app.get("/users", async (req, res) => {
       const cursor = usersCollection.find()
@@ -47,6 +48,8 @@ async function run() {
       res.send(result);
     });
 
+
+    /* programs */
     app.post("/program", async (req, res) => {
       const program = req.body;
       const result = await programsCollection.insertOne(program);
@@ -83,23 +86,26 @@ async function run() {
       res.send(result);
     });
 
+    /* success */
+    app.post("/success", async (req, res) => {
+      const successStory = req.body;
+      const result = await successCollection.insertOne(successStory);
+      res.send(result);
+    });
 
+    app.get("/success", async (req, res) => {
+      const result = await successCollection.find().limit(4).toArray();
+      res.send(result);
+    });
 
-    // app.get('/user/:email', async (req, res) => {
-    //   const email = req.params.email;
-    //   try {
-    //     const user = await usersCollection.findOne({ email: email });
-    //     if (user) {
-    //       res.json(user);
-    //     } else {
-    //       res.status(404).json({ message: 'User not found' });
-    //     }
-    //   } catch (error) {
-    //     res.status(500).json({ message: 'Server error' });
-    //   }
-    // });
+    app.delete("/success/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await successCollection.deleteOne(query);
+      res.send(result);
+    });
 
-
+    /*  */
     app.get("/users/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
