@@ -25,6 +25,8 @@ async function run() {
     //await client.connect();
     // Send a ping to confirm a successful connection
     const usersCollection = client.db("school-of-excellence").collection("users");
+    const programsCollection = client.db("school-of-excellence").collection("programs");
+    const teacherCollection = client.db("school-of-excellence").collection("teachers");
 
     app.get("/users", async (req, res) => {
       const cursor = usersCollection.find()
@@ -45,6 +47,41 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/program", async (req, res) => {
+      const program = req.body;
+      const result = await programsCollection.insertOne(program);
+      res.send(result);
+    });
+
+    app.get("/programs", async (req, res) => {
+      const result = await programsCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete("/programs/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await programsCollection.deleteOne(query);
+      res.send(result);
+    });
+    /* teachers */
+    app.post("/teacher", async (req, res) => {
+      const teacher = req.body;
+      const result = await teacherCollection.insertOne(teacher);
+      res.send(result);
+    });
+
+    app.get("/teachers", async (req, res) => {
+      const result = await teacherCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete("/teachers/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await teacherCollection.deleteOne(query);
+      res.send(result);
+    });
 
 
 
