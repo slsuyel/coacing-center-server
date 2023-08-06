@@ -138,8 +138,8 @@ async function run() {
         total_amount: mainPrice,
         currency: 'BDT',
         tran_id: transId, // use unique tran_id for each api call
-        success_url: `https://excellence-server.vercel.app/payment/success/${transId}`,
-        fail_url: `https://excellence-server.vercel.app/payment/fail/${transId}`,
+        success_url: `http://localhost:3000/payment/success/${transId}`,
+        fail_url: `http://localhost:3000/payment/fail/${transId}`,
         cancel_url: 'http://localhost:3030/cancel',
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
@@ -219,13 +219,13 @@ async function run() {
         }
         )
         if (result.modifiedCount > 0) {
-          res.redirect(`https://schooloe.netlify.app/payment/success/:${req.params.transId}`)
+          res.redirect(`http://localhost:5173/payment/success/:${req.params.transId}`)
         }
       });
       app.post("/payment/fail/:transId", async (req, res) => {
         const result = await orderCollection.deleteOne({ transactionId: req.params.transId })
         if (result.deletedCount) {
-          res.redirect(`https://schooloe.netlify.app/payment/fail/:${req.params.transId}`)
+          res.redirect(`http://localhost:5173/payment/fail/:${req.params.transId}`)
         }
       })
 
@@ -237,12 +237,44 @@ async function run() {
       res.send(result)
     })
     /*  */
+
+    app.get('/sell/programs', async (req, res) => {
+      const result = await orderCollection.find({ status: true }).toArray();
+      const programsWithEmails = [];
+
+      result.forEach(order => {
+        const { programName, email } = order.order;
+
+        if (programName && email) {
+          let programEntry = programsWithEmails.find(entry => entry.programName === programName);
+
+          if (!programEntry) {
+            programEntry = { programName, emails: [] };
+            programsWithEmails.push(programEntry);
+          }
+          if (!programEntry.emails.includes(email)) {
+            programEntry.emails.push(email);
+          }
+        }
+      });
+      res.json(programsWithEmails);
+    });
+
+
+
+
+
+
+
+
+
+    /*  */
     app.get("/myorders/:email", async (req, res) => {
       const userEmail = req.params.email
       const result = await orderCollection.find({ "order.email": userEmail, status: true }).toArray();
       res.send(result)
     })
-
+    /*  */
 
     /*  */
     await client.db("admin").command({ ping: 1 });
