@@ -138,8 +138,8 @@ async function run() {
         total_amount: mainPrice,
         currency: 'BDT',
         tran_id: transId, // use unique tran_id for each api call
-        success_url: `http://localhost:3000/payment/success/${transId}`,
-        fail_url: `http://localhost:3000/payment/fail/${transId}`,
+        success_url: `https://excellence-server.vercel.app/payment/success/${transId}`,
+        fail_url: `https://excellence-server.vercel.app/payment/fail/${transId}`,
         cancel_url: 'http://localhost:3030/cancel',
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
@@ -165,22 +165,51 @@ async function run() {
         ship_country: 'Bangladesh',
       };
       // console.log(data);
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
-      sslcz.init(data).then(apiResponse => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL
-        res.send({ url: GatewayPageURL })
+      // const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+      // sslcz.init(data).then(apiResponse => {
+      //   // Redirect the user to payment gateway
+      //   let GatewayPageURL = apiResponse.GatewayPageURL
+      //   res.send({ url: GatewayPageURL })
 
-        const finalOrder = {
-          price: mainPrice,
-          order,
-          status: false,
-          transactionId: transId
+      //   const finalOrder = {
+      //     price: mainPrice,
+      //     order,
+      //     status: false,
+      //     transactionId: transId
+      //   }
+      //   const result =  orderCollection.insertOne(finalOrder)
+      //   console.log(result);
+      //   //  console.log('Redirecting to: ', GatewayPageURL)
+      // });
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+
+      (async () => {
+        try {
+          const apiResponse = await sslcz.init(data);
+
+          // Redirect the user to payment gateway
+          let GatewayPageURL = apiResponse.GatewayPageURL;
+          res.send({ url: GatewayPageURL });
+
+          const finalOrder = {
+            price: mainPrice,
+            order,
+            status: false,
+            transactionId: transId,
+          };
+
+          const result = await orderCollection.insertOne(finalOrder);
+          // console.log(result);
+
+          // Uncomment this line if you want to log the redirection URL
+          // console.log('Redirecting to: ', GatewayPageURL);
+        } catch (error) {
+          console.error('An error occurred:', error);
+          // Handle the error as needed
         }
-        const result = orderCollection.insertOne(finalOrder)
+      })();
 
-         console.log('Redirecting to: ', GatewayPageURL)
-      });
+
 
       app.post("/payment/success/:transId", async (req, res) => {
         const result = await orderCollection.updateOne({ transactionId: req.params.transId }, {
@@ -190,13 +219,13 @@ async function run() {
         }
         )
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/:${req.params.transId}`)
+          res.redirect(`https://schooloe.netlify.app/payment/success/:${req.params.transId}`)
         }
       });
       app.post("/payment/fail/:transId", async (req, res) => {
         const result = await orderCollection.deleteOne({ transactionId: req.params.transId })
         if (result.deletedCount) {
-          res.redirect(`http://localhost:5173/payment/fail/:${req.params.transId}`)
+          res.redirect(`https://schooloe.netlify.app/payment/fail/:${req.params.transId}`)
         }
       })
 
@@ -209,7 +238,7 @@ async function run() {
     })
     /*  */
     app.get("/myorders/:email", async (req, res) => {
-     const userEmail = req.params.email
+      const userEmail = req.params.email
       const result = await orderCollection.find({ "order.email": userEmail, status: true }).toArray();
       res.send(result)
     })
