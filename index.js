@@ -1,5 +1,9 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
+
+const SSLCommerzPayment = require('sslcommerz-lts')
+
+
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
@@ -19,6 +23,11 @@ const client = new MongoClient(uri, {
   },
 });
 
+const store_id = 'schoo64cf3837257cc'
+const store_passwd = 'schoo64cf3837257cc@ssl'
+const is_live = false //true for live, false for sandbox
+
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -26,6 +35,7 @@ async function run() {
     // Send a ping to confirm a successful connection
     const usersCollection = client.db("school-of-excellence").collection("users");
     const programsCollection = client.db("school-of-excellence").collection("programs");
+    const orderCollection = client.db("school-of-excellence").collection("orders");
     const teacherCollection = client.db("school-of-excellence").collection("teachers");
     const successCollection = client.db("school-of-excellence").collection("success");
 
@@ -113,7 +123,99 @@ async function run() {
       res.send(user);
     });
 
+    /* ssl */
+    const banglaToEnglishNumerals = {
+      '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'
+    };
+    const transId = new ObjectId().toString()
+    app.post("/orders", async (req, res) => {
+      const order = req.body;
+      const program = await programsCollection.findOne({ _id: new ObjectId(order.programId) });
+      const banglaPrice = program.price;
+      const mainPrice = banglaPrice.replace(/[০-৯]/g, match => banglaToEnglishNumerals[match]);
 
+      const data = {
+        total_amount: mainPrice,
+        currency: 'BDT',
+        tran_id: transId, // use unique tran_id for each api call
+        success_url: `http://localhost:3000/payment/success/${transId}`,
+        fail_url: `http://localhost:3000/payment/fail/${transId}`,
+        cancel_url: 'http://localhost:3030/cancel',
+        ipn_url: 'http://localhost:3030/ipn',
+        shipping_method: 'Courier',
+        product_name: 'Computer.',
+        product_category: 'Electronic',
+        product_profile: 'general',
+        cus_name: 'Customer Name',
+        cus_email: order.email,
+        cus_add1: 'Dhaka',
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: '01711111111',
+        cus_fax: '01711111111',
+        ship_name: 'Customer Name',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
+      };
+      // console.log(data);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+      sslcz.init(data).then(apiResponse => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL
+        res.send({ url: GatewayPageURL })
+
+        const finalOrder = {
+          price: mainPrice,
+          order,
+          status: false,
+          transactionId: transId
+        }
+        const result = orderCollection.insertOne(finalOrder)
+
+         console.log('Redirecting to: ', GatewayPageURL)
+      });
+
+      app.post("/payment/success/:transId", async (req, res) => {
+        const result = await orderCollection.updateOne({ transactionId: req.params.transId }, {
+          $set: {
+            status: true
+          }
+        }
+        )
+        if (result.modifiedCount > 0) {
+          res.redirect(`http://localhost:5173/payment/success/:${req.params.transId}`)
+        }
+      });
+      app.post("/payment/fail/:transId", async (req, res) => {
+        const result = await orderCollection.deleteOne({ transactionId: req.params.transId })
+        if (result.deletedCount) {
+          res.redirect(`http://localhost:5173/payment/fail/:${req.params.transId}`)
+        }
+      })
+
+    });
+
+    /*all orders */
+    app.get("/orders", async (req, res) => {
+      const result = await orderCollection.find({ status: true }).toArray()
+      res.send(result)
+    })
+    /*  */
+    app.get("/myorders/:email", async (req, res) => {
+     const userEmail = req.params.email
+      const result = await orderCollection.find({ "order.email": userEmail, status: true }).toArray();
+      res.send(result)
+    })
+
+
+    /*  */
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
