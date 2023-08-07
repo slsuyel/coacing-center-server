@@ -38,6 +38,7 @@ async function run() {
     const orderCollection = client.db("school-of-excellence").collection("orders");
     const teacherCollection = client.db("school-of-excellence").collection("teachers");
     const successCollection = client.db("school-of-excellence").collection("success");
+    const blogsCollection = client.db("school-of-excellence").collection("blogs");
 
     app.get("/users", async (req, res) => {
       const cursor = usersCollection.find()
@@ -57,7 +58,6 @@ async function run() {
       const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
-
 
     /* programs */
     app.post("/program", async (req, res) => {
@@ -138,8 +138,8 @@ async function run() {
         total_amount: mainPrice,
         currency: 'BDT',
         tran_id: transId, // use unique tran_id for each api call
-        success_url: `http://localhost:3000/payment/success/${transId}`,
-        fail_url: `http://localhost:3000/payment/fail/${transId}`,
+        success_url: `https://excellence-server.vercel.app/payment/success/${transId}`,
+        fail_url: `https://excellence-server.vercel.app/payment/fail/${transId}`,
         cancel_url: 'http://localhost:3030/cancel',
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
@@ -219,16 +219,16 @@ async function run() {
         }
         )
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/:${req.params.transId}`)
+          res.redirect(`https://schooloe.netlify.app/payment/success/:${req.params.transId}`)
         }
       });
       app.post("/payment/fail/:transId", async (req, res) => {
         const result = await orderCollection.deleteOne({ transactionId: req.params.transId })
         if (result.deletedCount) {
-          res.redirect(`http://localhost:5173/payment/fail/:${req.params.transId}`)
+          res.redirect(`https://schooloe.netlify.app/payment/fail/:${req.params.transId}`)
         }
       })
-
+      /* https://schooloe.netlify.app/programs */
     });
 
     /*all orders */
@@ -260,8 +260,23 @@ async function run() {
       res.json(programsWithEmails);
     });
 
+    /* Blogs */
+    app.get('/blogs', async (req, res) => {
+      const result = await blogsCollection.find().limit(9).toArray()
+      res.send(result)
+    })
 
-
+    app.post('/blogs', async (req, res) => {
+      const blog = req.body
+      const result = await blogsCollection.insertOne(blog)
+      res.send(result)
+    })
+    app.delete('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await blogsCollection.deleteOne(query);
+      res.send(result);
+    })
 
 
 
