@@ -262,7 +262,8 @@ async function run() {
 
     /* Blogs */
     app.get('/blogs', async (req, res) => {
-      const result = await blogsCollection.find().limit(9).toArray()
+      // const result = await blogsCollection.find().limit(9).toArray()
+      const result = await blogsCollection.find().sort({ date: -1 }).limit(9).toArray();
       res.send(result)
     })
 
