@@ -1,9 +1,8 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
+const jwt = require('jsonwebtoken');
 
 const SSLCommerzPayment = require('sslcommerz-lts')
-
-
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
@@ -11,6 +10,27 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: "unauthorized access" });
+  }
+  // bearer token
+  const token = authorization.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.37kn8jw.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -39,20 +59,30 @@ async function run() {
     const teacherCollection = client.db("school-of-excellence").collection("teachers");
     const successCollection = client.db("school-of-excellence").collection("success");
     const blogsCollection = client.db("school-of-excellence").collection("blogs");
+    /*  */
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
 
-    app.get("/users", async (req, res) => {
+
+    /*  */
+    app.get("/users", verifyJWT, async (req, res) => {
       const cursor = usersCollection.find()
       const result = await cursor.toArray();
       res.send(result);
     });
 
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyJWT, async (req, res) => {
       const user = req.body;
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
 
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await usersCollection.deleteOne(query);
@@ -60,7 +90,7 @@ async function run() {
     });
 
     /* programs */
-    app.post("/program", async (req, res) => {
+    app.post("/program", verifyJWT, async (req, res) => {
       const program = req.body;
       const result = await programsCollection.insertOne(program);
       res.send(result);
@@ -71,14 +101,14 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/programs/:id", async (req, res) => {
+    app.delete("/programs/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await programsCollection.deleteOne(query);
       res.send(result);
     });
     /* teachers */
-    app.post("/teacher", async (req, res) => {
+    app.post("/teacher", verifyJWT, async (req, res) => {
       const teacher = req.body;
       const result = await teacherCollection.insertOne(teacher);
       res.send(result);
@@ -89,7 +119,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/teachers/:id", async (req, res) => {
+    app.delete("/teachers/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await teacherCollection.deleteOne(query);
@@ -97,7 +127,7 @@ async function run() {
     });
 
     /* success */
-    app.post("/success", async (req, res) => {
+    app.post("/success", verifyJWT, async (req, res) => {
       const successStory = req.body;
       const result = await successCollection.insertOne(successStory);
       res.send(result);
@@ -108,7 +138,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/success/:id", async (req, res) => {
+    app.delete("/success/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await successCollection.deleteOne(query);
@@ -116,7 +146,7 @@ async function run() {
     });
 
     /*  */
-    app.get("/users/:email", async (req, res) => {
+    app.get("/users/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       const user = await usersCollection.findOne(query);
@@ -232,7 +262,7 @@ async function run() {
     });
 
     /*all orders */
-    app.get("/orders", async (req, res) => {
+    app.get("/orders", verifyJWT, async (req, res) => {
       const result = await orderCollection.find({ status: true }).toArray()
       res.send(result)
     })
@@ -267,12 +297,12 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/blogs', async (req, res) => {
+    app.post('/blogs', verifyJWT, async (req, res) => {
       const blog = req.body
       const result = await blogsCollection.insertOne(blog)
       res.send(result)
     })
-    app.delete('/blog/:id', async (req, res) => {
+    app.delete('/blog/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await blogsCollection.deleteOne(query);
@@ -285,7 +315,7 @@ async function run() {
 
 
     /*  */
-    app.get("/myorders/:email", async (req, res) => {
+    app.get("/myorders/:email", verifyJWT, async (req, res) => {
       const userEmail = req.params.email
       const result = await orderCollection.find({ "order.email": userEmail, status: true }).toArray();
       res.send(result)
